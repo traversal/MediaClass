@@ -80,24 +80,70 @@
 	},
 	mediaList = [];
 
+  function fireEvent(element, name, data) {
+      
+    var event;
+    if (document.createEvent) {
+      event = document.createEvent("HTMLEvents");
+      event.initEvent(name, true, true);
+    } else {
+      event = document.createEventObject();
+      event.eventType = name;
+    }
+
+    event.eventName = name;
+    event.data = data || { };
+
+    if (document.createEvent) {
+      element.dispatchEvent(event);
+    } else {
+      element.fireEvent("on" + event.eventType, event);
+    }
+        
+  }
+    
 	function mediaLoop() {
+
+    var seen = {};
+    var elements = [];
+    
 		for (var i = 0, item, match, element; item = mediaList[i]; ++i) {
 			match = item.media.match(/(.+?):media\((.+?)\)/);
 
 			if (match) {
+
 				if (documentElement.querySelectorAll) {
 					all = documentElement.querySelectorAll(match[1]);
 
 					for (var index = 0; element = all[index]; ++index) {
 						/this/.test(match[2]) && getElementMediaFeatures(element);
-
 						evalMediaQuery(match[2]) ? addClass(element, item.className) : removeClass(element, item.className);
+            
+            if (!seen[element]) {
+              seen[element] = true;
+              elements[elements.length] = element;
+            }
 					}
+          
 				}
+        
 			} else {
+
 				evalMediaQuery(item.media) ? addClass(documentElement, item.className) : removeClass(documentElement, item.className);
+        
+        if (!seen[documentElement]) {
+          seen[documentElement] = true;
+          elements[elements.length] = documentElement;
+        }
+        
 			}
+
 		}
+    
+    for (var e = 0; e < elements.length; e++) {
+      fireEvent( elements[e], "mediaclassupdated", { className: elements[e].className } );
+    }
+    
 	}
 
 	function MediaQuery(className, mediaQuery) {
@@ -110,11 +156,13 @@
 		self.disable = function () { if (enabled) { mediaList.splice(self.index, 1); enabled = false; } };
 	}
 
-	global.MediaClass = function (className, mediaQuery) {
+	global.MediaClass = function (className, mediaQuery, initOnly) {
 		var mq = new MediaQuery(className, mediaQuery);
-
-    mediaLoop();
-
+    
+    if (!initOnly) {
+      mediaLoop();
+    }
+    
 		return mq;
 	};
 
